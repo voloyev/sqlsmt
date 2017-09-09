@@ -35,7 +35,7 @@ InputBuffer* new_input_buffer()
 void print_prompt()
 {
         //create print promt text
-        printf("db > ");
+        printf("sqlsmt > ");
 }
 
 void read_input(InputBuffer* input_buffer)
@@ -78,11 +78,12 @@ int main(int argc, char* argv[])
                 print_prompt();
                 read_input(input_buffer);
 
-                if (strcmp(input_buffer->buffer, ".exit") == 0)
+                if (strcmp(input_buffer->buffer, ".exit") == 0) {
                         // when command .exit than exit the buffer
+                        puts("Bye!");
                         exit(EXIT_SUCCESS);
-                else 
+                } else {
                         printf("Unrecognized command '%s'.\n", input_buffer->buffer);
-                
+                }
         }
 }
