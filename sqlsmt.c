@@ -28,15 +28,15 @@ typedef enum MetaCommandResult_t MetacomandResult;
 enum Prepareresult_t {
         PREPARE_SUCCESS,
         PREPARE_SYNTAX_ERROR,
-        PREPARE_UNRECOGNIZED_STATMENT
+        PREPARE_UNRECOGNIZED_STATEMENT
 };
 typedef enum Prepareresult_t PrepareResult;
 
-enum StatmentType_t {
-        STATMENT_INSERT,
-        STATMENT_SELECT
+enum StatementType_t {
+        STATEMENT_INSERT,
+        STATEMENT_SELECT
 };
-typedef enum StatmentType_t StatementType;
+typedef enum StatementType_t StatementType;
 
 const uint32_t COLUMN_USERNAME_SIZE = 32;
 const uint32_t COLUMN_EMAIL_SIZE = 255;
@@ -48,11 +48,11 @@ struct Row_t {
 };
 typedef struct Row_t Row;
 
-struct Statment_t {
+struct Statement_t {
         StatementType type;
         Row row_to_insert;
 };
-typedef struct Statment_t Statment;
+typedef struct Statement_t Statement;
 #define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
 
 const uint32_t ID_SIZE = size_of_attribute(Row, id);
@@ -147,26 +147,27 @@ MetacomandResult do_meta_command(InputBuffer* input_buffer) {
         }
 }
 
-PrepareResult prepare_statment(InputBuffer* input_buffer, Statment* statment) {
+PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement) {
         if (strncmp(input_buffer->buffer, "insert", 6) == 0) {
-                statment->type = STATMENT_INSERT;
+                statement->type = STATEMENT_INSERT;
                 int args_assigned = sscanf(
                         input_buffer->buffer, "Insert %d %s %s",
-                        &(statment->row_to_insert.id),
-                        statment->row_to_insert.username, statment->row_to_insert.email);
+                        &(statement->row_to_insert.id),
+                        statement->row_to_insert.username, statement->row_to_insert.email);
                 if (args_assigned < 3) {
-                        return PREPARE_SUCCESS;
+                        return PREPARE_SYNTAX_ERROR;
                 }
+                return PREPARE_SUCCESS;
         }
         if (strcmp(input_buffer->buffer, "select") == 0) {
-                statment->type = STATMENT_SELECT;
+                statement->type = STATEMENT_SELECT;
                 return PREPARE_SUCCESS;
         }
 
-        return PREPARE_UNRECOGNIZED_STATMENT;
+        return PREPARE_UNRECOGNIZED_STATEMENT;
 }
 
-ExecuteResult execute_insert(Statment* statement, Table* table) {
+ExecuteResult execute_insert(Statement* statement, Table* table) {
         if (table->num_rows >= TABLE_MAX_ROWS) {
                 return EXECUTE_TABLE_FULL;
         }
@@ -176,19 +177,19 @@ ExecuteResult execute_insert(Statment* statement, Table* table) {
         table->num_rows += 1;
         return EXECUTE_SUCCESS;
 }
-ExecuteResult execute_select(Statment* statement, Table* table) {
+ExecuteResult execute_select(Statement* statement, Table* table) {
         Row row;
-        for (uint32_t i = 0; i< table->num_rows; i++) {
+        for (uint32_t i = 0; i < table->num_rows; i++) {
                 deserialize_row(row_slot(table, i), &row);
                 print_row(&row);
         }
         return EXECUTE_SUCCESS;
 }
-ExecuteResult execute_statment(Statment* statement, Table* table) {
+ExecuteResult execute_statement(Statement* statement, Table* table) {
         switch (statement->type) {
-        case(STATMENT_INSERT):
-                return execute_select(statement, table);
-        case (STATMENT_SELECT):
+        case(STATEMENT_INSERT):
+                return execute_insert(statement, table);
+        case (STATEMENT_SELECT):
                 return execute_select(statement, table);
         }
 }
@@ -197,9 +198,11 @@ int main(int argc, char* argv[])
 {
         Table* table = new_table();
         InputBuffer* input_buffer = new_input_buffer();
+
         while (true) {
                 print_prompt();
                 read_input(input_buffer);
+
                 if (input_buffer->buffer[0] == '.') {
                         switch (do_meta_command(input_buffer)) {
                         case (META_COMMAND_SUCCESS):
@@ -209,20 +212,21 @@ int main(int argc, char* argv[])
                                 continue;
                         }
                 }
-                Statment statment;
-                switch (prepare_statment(input_buffer, &statment)) {
+
+                Statement statement;
+                switch (prepare_statement(input_buffer, &statement)) {
                 case (PREPARE_SUCCESS):
                         break;
                 case (PREPARE_SYNTAX_ERROR):
-                        printf("Syntax error. Could not parse statment.\n");
+                        printf("Syntax error. Could not parse statement.\n");
                         continue;
-                case (PREPARE_UNRECOGNIZED_STATMENT):
+                case (PREPARE_UNRECOGNIZED_STATEMENT):
                         printf("Unrecognized keyword at start of '%s'\n",
                                input_buffer->buffer);
                         continue;
                 }
 
-                switch (execute_statment(&statment, table)) {
+                switch (execute_statement(&statement, table)) {
                 case (EXIT_SUCCESS):
                         printf("Executed.\n");
                         break;
