@@ -9,8 +9,6 @@ struct InputBuffer_t
         size_t buffer_length;
         ssize_t input_length;
 };
-
-// Create type of InputBuffer_t and named it InputBuffer
 typedef struct InputBuffer_t InputBuffer;
 
 enum ExecuteResult_t {
@@ -53,6 +51,7 @@ struct Statement_t {
         Row row_to_insert;
 };
 typedef struct Statement_t Statement;
+
 #define size_of_attribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
 
 const uint32_t ID_SIZE = size_of_attribute(Row, id);
