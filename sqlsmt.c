@@ -69,8 +69,15 @@ const uint32_t TABLE_MAX_PAGES = 100;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
-struct Table_t {
+struct Pager_t {
+        int file_descriptor;
+        uint32_t file_length;
         void* pages[TABLE_MAX_PAGES];
+};
+typedef struct Pager_t Pager;
+
+struct Table_t {
+        Pager* pager;
         uint32_t num_rows;
 };
 typedef struct Table_t Table;
@@ -91,20 +98,48 @@ void deserialize_row(void* source, Row* destination) {
         memcpy(&(destination->email), source + EMAIL_OFFSET, EMAIL_SIZE);
 }
 
+//TODO void* get_page(Pager* pager, uint32_t page_num)
+
 void* row_slot(Table* table, uint32_t row_num) {
         uint32_t page_num = row_num / ROWS_PER_PAGE;
-        void* page = table->pages[page_num];
-        if(!page) {
-                page = table->pages[page_num] = malloc(PAGE_SIZE);
-        }
+        void* page = get_page(table->pager, page_num);
         uint32_t row_offset = row_num % ROWS_PER_PAGE;
         uint32_t byte_offset = row_offset * ROW_SIZE;
         return page + byte_offset;
 }
 
-Table* new_table() {
+
+Pager* pager_open(const char* filename)
+{
+        int fd = open(filename,
+                      O_RDWR |
+                      O_CREAT,
+                      S_IWUSR |
+                      S_IRUSR
+                );
+        if (fd == -1) {
+                printf("Unable to open file\n");
+                exit(EXIT_FAILURE);
+        }
+
+        off_t file_length = lseek(fd, 0, SEEK_END);
+        Pager* pager = malloc(sizeof(Pager));
+        pager->file_descriptor = fd;
+        pager->file_length = file_length;
+
+        for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+                pager->pages[i] = NULL;
+        }
+        return pager;
+}
+
+Table* db_open(const char* filename) {
+        Pager* pager = pager_open(filename);
+        uint32_t num_rows = pager->file_length / ROW_SIZE;
+
         Table* table = malloc(sizeof(Table));
-        table->num_rows = 0;
+        table->pager = pager;
+        table->num_rows = num_rows;
 
         return table;
 }

@@ -92,4 +92,20 @@ describe 'database' do
                                     "sqlsmt > "
                                   ])
   end
+
+  it 'save data on disk' do
+    run_script([
+                 "insert 1 user user@example.com",
+                 ".exit"
+               ])
+    result = run_script([
+                           "select",
+                           ".exit"
+                         ])
+    expect(result).to match_array([
+                                    "sqlsmt > (1, user user@example.com)",
+                                    "Executed.",
+                                    "sqlsmt > "
+                                  ])
+  end
 end
